@@ -1,56 +1,57 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form");
-  const taskList = document.getElementById("tasks"); // Assuming this is where you add tasks
+const chai = require('chai');
+global.expect = chai.expect;
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault(); // Prevent form from refreshing the page
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
+const babel = require('@babel/core');
 
-    const input = document.getElementById("new-task-description");
-    const taskText = input.value;
+// Load HTML content
+const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
 
-    const li = document.createElement("li");
-    li.textContent = taskText;
+// Transform JavaScript using Babel
+const { code: transformedScript } = babel.transformFileSync(
+  path.resolve(__dirname, '..', 'src/index.js'),
+  { presets: ['@babel/preset-env'] }
+);
 
-    taskList.appendChild(li);
-
-    form.reset(); // optional: clears the input field
-  });
+// Initialize JSDOM
+const dom = new JSDOM(html, {
+  runScripts: "dangerously",
+  resources: "usable"
 });
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+// Inject the transformed JavaScript into the virtual DOM
+const scriptElement = dom.window.document.createElement("script");
+scriptElement.textContent = transformedScript;
+dom.window.document.body.appendChild(scriptElement);
 
-  const input = document.getElementById("new-task-description");
-  const taskText = input.value;
+// Expose JSDOM globals to the testing environment
+global.window = dom.window;
+global.document = dom.window.document;
+global.navigator = dom.window.navigator;
+global.HTMLElement = dom.window.HTMLElement;
+global.Node = dom.window.Node;
+global.Text = dom.window.Text;
+global.XMLHttpRequest = dom.window.XMLHttpRequest;
 
-  const li = document.createElement("li");
-  li.textContent = taskText;
+// Sample test suite for JavaScript event handling
+describe('Handling form submission', () => {
+  let form
+  let formInput
+  let taskList
 
-  // Create delete button
-  const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "❌";
-  deleteBtn.style.marginLeft = "10px";
-  deleteBtn.addEventListener("click", () => {
-    li.remove();
-  });
+  before(() => {
+    form = document.querySelector('#create-task-form')
+    formInput = document.querySelector('#new-task-description')
+    taskList = document.querySelector('#tasks')
+  })
 
-  li.appendChild(deleteBtn);
-  taskList.appendChild(li);
-
-  form.reset();
-});
-<select id="priority">
-  <option value="high">High</option>
-  <option value="medium">Medium</option>
-  <option value="low">Low</option>
-</select>
-
-const priority = document.getElementById("priority").value;
-
-if (priority === "high") {
-  li.style.color = "red";
-} else if (priority === "medium") {
-  li.style.color = "orange";
-} else if (priority === "low") {
-  li.style.color = "green";
-}
+  it('should add an event to the form and add input to webpage', () => {
+    // Simulate user input
+    formInput.value = 'Wash the dishes'
+    const event = new dom.window.Event('submit')
+    form.dispatchEvent(event)
+    expect(taskList.textContent).to.include('Wash the dishes')
+  })
+})
