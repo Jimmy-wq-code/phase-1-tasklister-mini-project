@@ -1,57 +1,45 @@
-const chai = require('chai');
-global.expect = chai.expect;
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('create-task-form');
+  const taskInput = document.getElementById('new-task-description');
+  const prioritySelect = document.getElementById('priority'); // Optional if you add a priority dropdown
+  const taskList = document.getElementById('tasks');
 
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-const babel = require('@babel/core');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
 
-// Load HTML content
-const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
+    const taskText = taskInput.value.trim();
+    if (taskText === '') return;
 
-// Transform JavaScript using Babel
-const { code: transformedScript } = babel.transformFileSync(
-  path.resolve(__dirname, '..', 'src/index.js'),
-  { presets: ['@babel/preset-env'] }
-);
+    const li = document.createElement('li');
+    li.textContent = taskText;
 
-// Initialize JSDOM
-const dom = new JSDOM(html, {
-  runScripts: "dangerously",
-  resources: "usable"
+    // Optional: handle priority color (if <select id="priority"> is added in HTML)
+    if (prioritySelect) {
+      const priority = prioritySelect.value;
+      switch (priority) {
+        case 'high':
+          li.style.color = 'red';
+          break;
+        case 'medium':
+          li.style.color = 'orange';
+          break;
+        case 'low':
+          li.style.color = 'green';
+          break;
+        default:
+          li.style.color = 'black';
+      }
+    }
+
+    // Add delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'X';
+    deleteBtn.style.marginLeft = '10px';
+    deleteBtn.addEventListener('click', () => li.remove());
+
+    li.appendChild(deleteBtn);
+    taskList.appendChild(li);
+
+    form.reset();
+  });
 });
-
-// Inject the transformed JavaScript into the virtual DOM
-const scriptElement = dom.window.document.createElement("script");
-scriptElement.textContent = transformedScript;
-dom.window.document.body.appendChild(scriptElement);
-
-// Expose JSDOM globals to the testing environment
-global.window = dom.window;
-global.document = dom.window.document;
-global.navigator = dom.window.navigator;
-global.HTMLElement = dom.window.HTMLElement;
-global.Node = dom.window.Node;
-global.Text = dom.window.Text;
-global.XMLHttpRequest = dom.window.XMLHttpRequest;
-
-// Sample test suite for JavaScript event handling
-describe('Handling form submission', () => {
-  let form
-  let formInput
-  let taskList
-
-  before(() => {
-    form = document.querySelector('#create-task-form')
-    formInput = document.querySelector('#new-task-description')
-    taskList = document.querySelector('#tasks')
-  })
-
-  it('should add an event to the form and add input to webpage', () => {
-    // Simulate user input
-    formInput.value = 'Wash the dishes'
-    const event = new dom.window.Event('submit')
-    form.dispatchEvent(event)
-    expect(taskList.textContent).to.include('Wash the dishes')
-  })
-})
